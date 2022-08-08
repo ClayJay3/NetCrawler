@@ -2,7 +2,7 @@
 It's universal, but probably only works for cisco switches. This project can export network maps, it provides a couple different robust methods of discovery.
 
 ## Install
-This python program has been compiled with pyinstaller, which turns python code into a .exe file. It includes all dependencies and a python 3.8.10 installation in the executable, so no third-party application need to be installed.
+This python program has been compiled with pyinstaller, which turns python code into a .exe file. It includes all dependencies and a python 3.8.10 installation in the executable, so no third-party applications need to be installed.
   1) Download the latest release.
       - onefile.zip offers a more simplistic application executable, but runs at a slower speed. This is because the whole application and its dependencies are compiled
         into a single file.
