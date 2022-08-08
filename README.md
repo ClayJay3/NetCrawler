@@ -1,4 +1,4 @@
-# PythonSwitchConfigurator
+# PythonNetCrawler
 It's universal, but probably only works for cisco switches. This project can export network maps, it provides a couple different robust methods of discovery.
 
 ## Install
