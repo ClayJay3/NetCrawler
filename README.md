@@ -1,8 +1,5 @@
 # PythonSwitchConfigurator
-It's universal, but probably only works for cisco switches. This project is an attempt to create a convenient GUI for the simple configuration of network switches. It can also export network maps through the auto discover feature.
-```diff
--RUN WITH CAUTION. YOU CAN EASILY MESS UP A SWITCH'S CONFIG WITH THIS PROGRAM.-
-```
+It's universal, but probably only works for cisco switches. This project can export network maps, it provides a couple different robust methods of discovery.
 
 ## Install
 This python program has been compiled with pyinstaller, which turns python code into a .exe file. It includes all dependencies and a python 3.8.10 installation in the executable, so no third-party application need to be installed.
@@ -28,5 +25,3 @@ If your wanting to make code changes or just want the latest build, you'll need 
       
 ### More Info
 All actions, warnings, and errors are saved to a timestamped logs folder in the root directory of the appliction. If the program crashes or does something unexpected, please open a new issue here on github and include the log in the issue.
-
-When using the Auto Discover feature on the main application window, you are asked if you want to save the discovered switch data. If you select yes, then the data will be saved to an exports folder in the project root directory.
