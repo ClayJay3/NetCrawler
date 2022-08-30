@@ -46,6 +46,7 @@ class MainUI():
         self.export_permission_error = False
         self.enable_telnet_check = None
         self.force_telnet_check = None
+        self.live_view_check = None
 
         # Open log file for displaying in console window.
         self.log_file = open("logs/latest.log", "r", encoding="utf-8")
@@ -138,6 +139,8 @@ class MainUI():
         self.text_box.grid(row=1, rowspan=9, columnspan=9, sticky=tk.NSEW)
         button = tk.Button(master=device_list_frame, text="Map Network", foreground="black", background="white", command=self.auto_discover_switches_callback)
         button.grid(row=1, rowspan=4, column=9, sticky=tk.NSEW)
+        live_view_checkbox = tk.Checkbutton(master=device_list_frame, text="Live View Mode", variable=self.live_view_check, onvalue=True, offvalue=False)
+        live_view_checkbox.grid(row=5, rowspan=1, column=9, columnspan=1, sticky=tk.E)
         button_ping = tk.Button(master=device_list_frame, text="Ping Check", foreground="black", background="white", command=self.mass_ping_button_callback)
         button_ping.grid(row=6, rowspan=4, column=9, sticky=tk.NSEW)
 
@@ -407,139 +410,142 @@ class MainUI():
                     # Write the final string.
                     file.write(data_string)
 
-                # Open network discovery map.
-                # Create new network map object from pyvis.
-                graph_net = Network(width="1920px", height="1080px", bgcolor='#222222', font_color='white', notebook=True, directed=False)
-                # Turn off color inheritance.
-                graph_net.inherit_edge_colors(status=False)
-                # Generate a list of node weights depending on how many times their names show up in the export list.
-                # Also generate a list of colors depending on device type.
-                name_weights = []
-                colors = []
-                filtered_export_info = []
-                for device in export_info:
-                    # Check if the matching data list isn't empty.
-                    if export_data_selections is not None and len(export_data_selections) > 0:
-                        # Create list of booleans for device type.
-                        type_boolean_list = [device["is_router"], device["is_switch"], device["is_wireless_ap"], device["is_phone"], device["is_camera"]]
-                        # Get a list of matching values for corresponding positions in the list.
-                        matching = False
-                        for i, bool_val in enumerate(export_data_selections):
-                            # Check if both are true.
-                            if bool_val and type_boolean_list[i]:
-                                matching = True
-                    else:
-                        # Just export everything is the user didn't choose.
-                        matching = True
+                # Check if live view mode is enabled.
+                if self.live_view_check.get():
+                    
+                else:
+                    # Create new network map object from pyvis.
+                    graph_net = Network(width="1920px", height="1080px", bgcolor='#222222', font_color='white', notebook=True, directed=False)
+                    # Turn off color inheritance.
+                    graph_net.inherit_edge_colors(status=False)
+                    # Generate a list of node weights depending on how many times their names show up in the export list.
+                    # Also generate a list of colors depending on device type.
+                    name_weights = []
+                    colors = []
+                    filtered_export_info = []
+                    for device in export_info:
+                        # Check if the matching data list isn't empty.
+                        if export_data_selections is not None and len(export_data_selections) > 0:
+                            # Create list of booleans for device type.
+                            type_boolean_list = [device["is_router"], device["is_switch"], device["is_wireless_ap"], device["is_phone"], device["is_camera"]]
+                            # Get a list of matching values for corresponding positions in the list.
+                            matching = False
+                            for i, bool_val in enumerate(export_data_selections):
+                                # Check if both are true.
+                                if bool_val and type_boolean_list[i]:
+                                    matching = True
+                        else:
+                            # Just export everything is the user didn't choose.
+                            matching = True
 
-                    # If the device is valid per user input, then append to new list and do other stuff.
-                    if matching:
-                        # Remove license info from dictionary.
-                        device.pop("license_info", None)
-                        # Append device to new list.
-                        filtered_export_info.append(device)
+                        # If the device is valid per user input, then append to new list and do other stuff.
+                        if matching:
+                            # Remove license info from dictionary.
+                            device.pop("license_info", None)
+                            # Append device to new list.
+                            filtered_export_info.append(device)
 
-                        # Get the device hostname.
-                        hostname = device["hostname"]
-                        weight = 0
-                        # Loop through export info again and count occurances.
-                        for info in export_info:
-                            # Check if the hostname or parent hostname equals the current hostname.
-                            if info["hostname"] == hostname or info["parent_host"] == hostname:
-                                # Add one to weight.
-                                weight += 1
-                        # Append weight to weights list.
-                        name_weights.append(weight)
+                            # Get the device hostname.
+                            hostname = device["hostname"]
+                            weight = 0
+                            # Loop through export info again and count occurances.
+                            for info in export_info:
+                                # Check if the hostname or parent hostname equals the current hostname.
+                                if info["hostname"] == hostname or info["parent_host"] == hostname:
+                                    # Add one to weight.
+                                    weight += 1
+                            # Append weight to weights list.
+                            name_weights.append(weight)
 
-                        # Check device type and append color.
-                        if device["is_wireless_ap"]:
-                            # Orange.
-                            colors.append("#eb6200")
-                        elif device["is_switch"]:       # is_switch and is_router can both be true, router overides.
-                            if device["is_router"] and export_data_selections[0]:
-                                # Green.
-                                colors.append("#21ad11")
-                            else:
-                                # Blue
-                                colors.append("#3300eb")
-                        elif device["is_phone"]:
-                            # Yellow
-                            colors.append("#f0e805")
-                        elif device["is_camera"]:
-                            # Purple.
-                            colors.append("#9f3dae")
+                            # Check device type and append color.
+                            if device["is_wireless_ap"]:
+                                # Orange.
+                                colors.append("#eb6200")
+                            elif device["is_switch"]:       # is_switch and is_router can both be true, router overides.
+                                if device["is_router"] and export_data_selections[0]:
+                                    # Green.
+                                    colors.append("#21ad11")
+                                else:
+                                    # Blue
+                                    colors.append("#3300eb")
+                            elif device["is_phone"]:
+                                # Yellow
+                                colors.append("#f0e805")
+                            elif device["is_camera"]:
+                                # Purple.
+                                colors.append("#9f3dae")
 
-                # Create a lamba function to generate random hex color codes.
-                # gen_rand_hex = lambda: random.randint(0,255)
-                # Add the nodes to the network graph.
-                # graph_net.add_nodes(list(range(len(filtered_export_info))),
-                #                 value=name_weights,
-                #                 title=[str(info) for info in filtered_export_info],
-                #                 label=[info["hostname"] for info in filtered_export_info],
-                #                 color=["#%02X%02X%02X" % (gen_rand_hex(), gen_rand_hex(), gen_rand_hex()) for i in range(len(filtered_export_info))])
-                # Add the nodes to the network diagram.
-                graph_net.add_nodes(list(range(len(filtered_export_info))),
-                            value=name_weights,
-                            title=[str(str(info)[1:-1].replace(",", "\n")) for info in filtered_export_info],
-                            label=[info["hostname"] for info in filtered_export_info],
-                            color=colors)
+                    # Create a lamba function to generate random hex color codes.
+                    # gen_rand_hex = lambda: random.randint(0,255)
+                    # Add the nodes to the network graph.
+                    # graph_net.add_nodes(list(range(len(filtered_export_info))),
+                    #                 value=name_weights,
+                    #                 title=[str(info) for info in filtered_export_info],
+                    #                 label=[info["hostname"] for info in filtered_export_info],
+                    #                 color=["#%02X%02X%02X" % (gen_rand_hex(), gen_rand_hex(), gen_rand_hex()) for i in range(len(filtered_export_info))])
+                    # Add the nodes to the network diagram.
+                    graph_net.add_nodes(list(range(len(filtered_export_info))),
+                                value=name_weights,
+                                title=[str(str(info)[1:-1].replace(",", "\n")) for info in filtered_export_info],
+                                label=[info["hostname"] for info in filtered_export_info],
+                                color=colors)
 
-                # Add the edges/paths to the nodes. This is super ineffficient.
-                for i, device in enumerate(filtered_export_info):
-                    # Get current device hostname. Cutoff domain. Also grab local interface.
-                    hostname = device["hostname"].split(".", 1)[0]
-                    local_interface = device["local_trunk_interface"]
-                    # Get current device parent hostname and interface.
-                    parent_hostname = device["parent_host"]
-                    parent_interface = device["parent_trunk_interface"]
-                    for j, device2 in enumerate(filtered_export_info):
-                        # Get search device hostname. Cutoff domain.
-                        search_hostname = device2["hostname"].split(".", 1)[0]
-                        # Check if parent and search name are the same.
-                        if parent_hostname == search_hostname:
-                            # Only add labels if at least one of them isn't NULL.
-                            if local_interface != "NULL" or parent_interface != "NULL":
-                                # Add edges based on node names.
-                                graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"], title=parent_interface + " -> " + local_interface)
-                            else:
-                                # Add edges based on node names.
-                                graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"])
+                    # Add the edges/paths to the nodes. This is super ineffficient.
+                    for i, device in enumerate(filtered_export_info):
+                        # Get current device hostname. Cutoff domain. Also grab local interface.
+                        hostname = device["hostname"].split(".", 1)[0]
+                        local_interface = device["local_trunk_interface"]
+                        # Get current device parent hostname and interface.
+                        parent_hostname = device["parent_host"]
+                        parent_interface = device["parent_trunk_interface"]
+                        for j, device2 in enumerate(filtered_export_info):
+                            # Get search device hostname. Cutoff domain.
+                            search_hostname = device2["hostname"].split(".", 1)[0]
+                            # Check if parent and search name are the same.
+                            if parent_hostname == search_hostname:
+                                # Only add labels if at least one of them isn't NULL.
+                                if local_interface != "NULL" or parent_interface != "NULL":
+                                    # Add edges based on node names.
+                                    graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"], title=parent_interface + " -> " + local_interface)
+                                else:
+                                    # Add edges based on node names.
+                                    graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"])
 
-                # Turn on settings panel.
-                graph_net.show_buttons()
-                # Export normal graph.
-                graph_net.show("exports/universe_graph.html")
-                # Set new graph options.
-                graph_net.set_options('''
-                const options = {
-                        "configure": {
-                        "enabled": true
-                    },
-                    "nodes": {
-                        "font": {
-                        "size": 5
-                        }
-                    },
-                    "layout": {
-                        "hierarchical": {
-                        "enabled": true,
-                        "blockShifting": false,
-                        "edgeMinimization": false,
-                        "parentCentralization": false
-                        }
-                    },
-                    "physics": {
-                        "hierarchicalRepulsion": {
-                        "centralGravity": 0,
-                        "nodeDistance": 195,
-                        "avoidOverlap": 1
+                    # Turn on settings panel.
+                    graph_net.show_buttons()
+                    # Export normal graph.
+                    graph_net.show("exports/universe_graph.html")
+                    # Set new graph options.
+                    graph_net.set_options('''
+                    const options = {
+                            "configure": {
+                            "enabled": true
                         },
-                        "minVelocity": 0.75,
-                        "solver": "hierarchicalRepulsion"
-                    }
-                }''')
-                # Export new graph.
-                graph_net.show("exports/hierarchical_graph.html")
+                        "nodes": {
+                            "font": {
+                            "size": 5
+                            }
+                        },
+                        "layout": {
+                            "hierarchical": {
+                            "enabled": true,
+                            "blockShifting": false,
+                            "edgeMinimization": false,
+                            "parentCentralization": false
+                            }
+                        },
+                        "physics": {
+                            "hierarchicalRepulsion": {
+                            "centralGravity": 0,
+                            "nodeDistance": 195,
+                            "avoidOverlap": 1
+                            },
+                            "minVelocity": 0.75,
+                            "solver": "hierarchicalRepulsion"
+                        }
+                    }''')
+                    # Export new graph.
+                    graph_net.show("exports/hierarchical_graph.html")
             except PermissionError as error:
                 # Catch permissions error if file is already opened by user from a previous session.
                 self.logger.error("Unable to export CSV file. Please make sure the old CSV file is closed if you opened it in a text editor or Excel.", exc_info=error)
