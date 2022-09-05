@@ -1,6 +1,9 @@
 # PythonNetCrawler
 It's universal, but probably only works for cisco switches. This project can export network maps, it provides a couple different robust methods of discovery.
 
+![183434476-88a4cb9c-7d72-4736-884f-e2333090d7e3](https://user-images.githubusercontent.com/26121134/188521359-1c5d6279-7a58-43ee-93e4-06274bd6cf87.PNG)
+![183434021-c08c2dfa-0dbc-47bc-a8b3-e8348ee57afe](https://user-images.githubusercontent.com/26121134/188521367-9db5c921-0991-4d73-8c3e-7a97c270f6ed.png)
+
 ## Install
 This python program has been compiled with pyinstaller, which turns python code into a .exe file. It includes all dependencies and a python 3.8.10 installation in the executable, so no third-party applications need to be installed.
   1) Download the latest release.
