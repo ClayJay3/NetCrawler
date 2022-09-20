@@ -1,17 +1,14 @@
-from cgi import test
-from cgitb import enable
 import logging
 import os
 import sys
+import time
 import webbrowser
 import tkinter as tk
 from threading import Thread
 from tkinter import messagebox
 from tkinter import font
-
 from pyvis.network import Network
 
-from interface.popup_window import MultipleCheckboxPopup
 from utils.open_connection import ssh_autodetect_info
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -47,6 +44,7 @@ class MainUI():
         self.enable_telnet_check = None
         self.force_telnet_check = None
         self.live_view_check = None
+        self.live_view_update_interval = 240
 
         # Open log file for displaying in console window.
         self.log_file = open("logs/latest.log", "r", encoding="utf-8")
@@ -87,6 +85,7 @@ class MainUI():
         # Create checkbox variables.
         self.enable_telnet_check = tk.BooleanVar(self.window)
         self.force_telnet_check = tk.BooleanVar(self.window)
+        self.live_view_check = tk.BooleanVar(self.window)
 
         # Setup window grid layout.
         self.window.rowconfigure(self.grid_size, weight=1, minsize=50)
@@ -338,7 +337,7 @@ class MainUI():
                 # Only continue if the first switch login was successful.
                 if auth_success:
                     # Start backprocess for auto discover.
-                    Thread(target=self.auto_discover_back_process, args=(text, usernames, passwords, enable_secrets, self.enable_telnet_check.get(), self.force_telnet_check.get(), True, export_data_selections)).start()
+                    Thread(target=self.auto_discover_back_process, args=(text, usernames, passwords, enable_secrets, self.enable_telnet_check.get(), self.force_telnet_check.get(), True, export_data_selections, self.live_view_check.get())).start()
                     # Set safety toggle.
                     self.already_auto_discovering = True
                     # Print log.
@@ -357,7 +356,7 @@ class MainUI():
             self.logger.warning("You must enter username and password credentials. Otherwise, I can't log into the switch!")
             messagebox.showwarning(title="Warning", message="You must enter username and password credentials.")
 
-    def auto_discover_back_process(self, text, usernames, passwords, enable_secrets, enable_telnet, force_telnet, export_data=True, export_data_selections=[]) -> None:
+    def auto_discover_back_process(self, text, usernames, passwords, enable_secrets, enable_telnet, force_telnet, export_data=True, export_data_selections=[], enable_live_view=False) -> None:
         """
         Helper function for auto discover.
         """
@@ -375,10 +374,29 @@ class MainUI():
 
             # Make sure file isn't already open.
             try:
+                # Write license info.
+                data_string = ""
+                with open('exports/license_info.txt', 'w') as file:
+                    # Loop through each device and append info.
+                    for device in export_info:
+                        # Check if device is a switch.
+                        if device["is_switch"]:
+                            # Save hostname, ip, and license_info.
+                            data_string += f"{device['hostname']} ({device['ip_addr']}):\n\n"
+                            data_string += device["license_info"]
+                            # Add newline.
+                            data_string += "\n\n#######################################################################################\n\n"
+
+                        # Remove license info from dictionary.
+                        device.pop("license_info")
+
+                    # Write the final string.
+                    file.write(data_string)
+
                 # Write normal discovery info.
                 with open('exports/network_crawl.csv', 'w') as file:
                     # Write the first label line.
-                    file.write(str(list(export_info[0].keys())).replace("license_info", "")[1:-1])
+                    file.write(str(list(export_info[0].keys()))[1:-1])
                     # Loop through each device and append info.
                     data_string = "\n"
                     for device in export_info:
@@ -394,25 +412,168 @@ class MainUI():
                     # Write the final string.
                     file.write(data_string)
 
-                # Write license info.
-                data_string = ""
-                with open('exports/license_info.txt', 'w') as file:
-                    # Loop through each device and append info.
-                    for device in export_info:
-                        # Check if device is a switch.
-                        if device["is_switch"]:
-                            # Save hostname, ip, and license_info.
-                            data_string += f"{device['hostname']} ({device['ip_addr']}):\n\n"
-                            data_string += device["license_info"]
-                            # Add newline.
-                            data_string += "\n\n#######################################################################################\n\n"
-
-                    # Write the final string.
-                    file.write(data_string)
-
                 # Check if live view mode is enabled.
-                if self.live_view_check.get():
-                    
+                if enable_live_view:
+                    # Endlessly show live view until discovery is triggered again.
+                    time_since_last_exec = 0
+                    while self.window_is_open:
+                        # Check the time since last execution.
+                        if (time.time() - time_since_last_exec) > self.live_view_update_interval:
+                            # Ping all devices to get a list of responsive and unresponsive devices.
+                            responsive_devices = []
+                            ping_of_death([device["ip_addr"] for device in export_info], responsive_devices)
+                            # Cut off needless values from list.
+                            responsive_devices = [result[0] for result in responsive_devices]
+
+                            # Create new network map object from pyvis.
+                            graph_net = Network(width="1920px", height="1080px", bgcolor='#222222', font_color='white', notebook=True, directed=False)
+                            # Turn off color inheritance.
+                            graph_net.inherit_edge_colors(status=False)
+                            # Generate a list of node weights depending on how many times their names show up in the export list.
+                            # Also generate a list of colors depending on device type.
+                            name_weights = []
+                            colors = []
+                            filtered_export_info = []
+                            for device, responsive in zip(export_info, responsive_devices):
+                                # Check if the matching data list isn't empty.
+                                if export_data_selections is not None and len(export_data_selections) > 0:
+                                    # Create list of booleans for device type.
+                                    type_boolean_list = [device["is_router"], device["is_switch"], device["is_wireless_ap"], device["is_phone"], device["is_camera"]]
+                                    # Get a list of matching values for corresponding positions in the list.
+                                    matching = False
+                                    for i, bool_val in enumerate(export_data_selections):
+                                        # Check if both are true.
+                                        if bool_val and type_boolean_list[i]:
+                                            matching = True
+                                else:
+                                    # Just export everything is the user didn't choose.
+                                    matching = True
+
+                                # If the device is valid per user input, then append to new list and do other stuff.
+                                if matching:
+                                    # Remove license info from dictionary.
+                                    device.pop("license_info", None)
+                                    # Append device to new list.
+                                    filtered_export_info.append(device)
+
+                                    # Get the device hostname.
+                                    hostname = device["hostname"]
+                                    weight = 0
+                                    # Loop through export info again and count occurances.
+                                    for info in export_info:
+                                        # Check if the hostname or parent hostname equals the current hostname.
+                                        if info["hostname"] == hostname or info["parent_host"] == hostname:
+                                            # Add one to weight.
+                                            weight += 1
+                                    # Append weight to weights list.
+                                    name_weights.append(weight)
+
+                                    # If device isn't repsonsive, then append the color red.
+                                    if responsive:
+                                        # Check device type and append color.
+                                        if device["is_wireless_ap"]:
+                                            # Orange.
+                                            colors.append("#eb6200")
+                                        elif device["is_switch"]:       # is_switch and is_router can both be true, router overides.
+                                            if device["is_router"] and export_data_selections[0]:
+                                                # Green.
+                                                colors.append("#21ad11")
+                                            else:
+                                                # Blue
+                                                colors.append("#3300eb")
+                                        elif device["is_phone"]:
+                                            # Yellow
+                                            colors.append("#f0e805")
+                                        elif device["is_camera"]:
+                                            # Purple.
+                                            colors.append("#9f3dae")
+                                    else:
+                                        # Only color the device red if it's a switch, else color white.
+                                        if device["is_switch"]:
+                                            # Check if switch belongs on our domain.
+                                            if "10.10." in device["ip_addr"]:
+                                                # Tiel
+                                                colors.append("#079A81")
+                                            else:
+                                                # Red.
+                                                colors.append("#ff0000")
+                                        else:
+                                            # White
+                                            colors.append("#C2C2C2")
+
+                            # Add the nodes to the network diagram.
+                            graph_net.add_nodes(list(range(len(filtered_export_info))),
+                                        value=name_weights,
+                                        title=[str(str(info)[1:-1].replace(",", "\n")) for info in filtered_export_info],
+                                        label=[info["hostname"] for info in filtered_export_info],
+                                        color=colors)
+
+                            # Add the edges/paths to the nodes. This is super ineffficient.
+                            for i, device in enumerate(filtered_export_info):
+                                # Get current device hostname. Cutoff domain. Also grab local interface.
+                                hostname = device["hostname"].split(".", 1)[0]
+                                local_interface = device["local_trunk_interface"]
+                                # Get current device parent hostname and interface.
+                                parent_hostname = device["parent_host"]
+                                parent_interface = device["parent_trunk_interface"]
+                                for j, device2 in enumerate(filtered_export_info):
+                                    # Get search device hostname. Cutoff domain.
+                                    search_hostname = device2["hostname"].split(".", 1)[0]
+                                    # Check if parent and search name are the same.
+                                    if parent_hostname == search_hostname:
+                                        # Only add labels if at least one of them isn't NULL.
+                                        if local_interface != "NULL" or parent_interface != "NULL":
+                                            # Add edges based on node names.
+                                            graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"], title=parent_interface + " -> " + local_interface)
+                                        else:
+                                            # Add edges based on node names.
+                                            graph_net.add_edge(j, i, arrows="to", color=graph_net.get_node(i)["color"])
+
+                            # Turn on settings panel.
+                            graph_net.show_buttons()
+                            # Export normal graph.
+                            graph_net.show("exports/universe_graph.html")
+                            # Set new graph options.
+                            graph_net.set_options('''
+                            const options = {
+                                    "configure": {
+                                    "enabled": true
+                                },
+                                "nodes": {
+                                    "font": {
+                                    "size": 5
+                                    }
+                                },
+                                "layout": {
+                                    "hierarchical": {
+                                    "enabled": true,
+                                    "blockShifting": false,
+                                    "edgeMinimization": false,
+                                    "parentCentralization": false
+                                    }
+                                },
+                                "physics": {
+                                    "hierarchicalRepulsion": {
+                                    "centralGravity": 0,
+                                    "nodeDistance": 195,
+                                    "avoidOverlap": 1
+                                    },
+                                    "minVelocity": 0.75,
+                                    "solver": "hierarchicalRepulsion"
+                                }
+                            }''')
+                            # Export new graph.
+                            graph_net.show("exports/hierarchical_graph.html")
+                            # Close any open webbrowsers.
+                            os.system("taskkill /im firefox.exe /f")
+                            os.system("taskkill /im chrome.exe /f")
+                            os.system("taskkill /im msedge.exe /f")
+                            # Open normal graph in new browser window.
+                            webbrowser.open('file://' + os.path.realpath("exports/universe_graph.html"))
+                            # webbrowser.open('file://' + os.path.realpath("exports/hierarchical_graph.html"))
+
+                            # Record exec time.
+                            time_since_last_exec = time.time()
                 else:
                     # Create new network map object from pyvis.
                     graph_net = Network(width="1920px", height="1080px", bgcolor='#222222', font_color='white', notebook=True, directed=False)

@@ -15,6 +15,7 @@ MAX_DISCOVERY_THREADS = 100
 ip_discovery_list = []
 export_info_list = []
 license_info = []
+serial_info = []
 
 def cdp_auto_discover(ip_list, usernames, passwords, enable_secrets, enable_telnet=False, force_telnet=False, export_info=False, recursion_level=0) -> list:
     """
@@ -56,9 +57,23 @@ def cdp_auto_discover(ip_list, usernames, passwords, enable_secrets, enable_teln
                     export_data["license_state"] = license_data["license_state"]
                     export_data["license_expire_period"] = license_data["expire_period"]
                     export_data["license_info"] = license_data["raw_output"]
+            # Add empty serial info in case nothing matches.
+            export_data["system_serial"] = "NULL"
+            export_data["motherboard_serial"] = "NULL"
+            export_data["powersupply_serial"] = "NULL"
+            # Loop through serial data.
+            for serial_data in serial_info:
+                # Check if the serial hostname appears in export hostname.
+                if serial_data["ip_addr"] == export_data["ip_addr"]:
+                    # Append serial info to export dictionary.
+                    export_data["system_serial"] =  serial_data["system_serial"]
+                    export_data["motherboard_serial"] = serial_data["motherboard_serial"]
+                    export_data["powersupply_serial"] = serial_data["powersupply_serial"]
 
         # Clear license_info arrray.
         license_info.clear()
+        # Clear serial info array.
+        serial_info.clear()
 
         # Return if we hit the end of the switch line.
         return ip_discovery_list, export_info_list
@@ -181,11 +196,15 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                 # Get parent hostname.
                 prompt = connection.find_prompt()[:-1]
 
-                # Create base dictionary.
+                # Create base dictionaries
                 license_dict = {"ip_addr": ip_addr, "license_state": "NULL", "expire_period": "NULL", "raw_output": "NULL"}
-                
+                serial_dict = {"ip_addr": ip_addr, "system_serial": "NULL", "motherboard_serial": "NULL", "powersupply_serial": "NULL"}
+
                 # Catch any readtimeouts.
                 try:
+                    #######################################################################
+                    # Get license info.
+                    #######################################################################
                     # Get license information about parent switch.
                     license_output = connection.send_command("show license | include Feature|Period|State")
                     # Check if the command output failed.
@@ -265,6 +284,44 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
 
                     # Append information to the list.
                     license_info.append(license_dict)
+
+                    #######################################################################
+                    # Get hardware serial info.
+                    #######################################################################
+                    # Run version command and get serial number output.
+                    output = connection.send_command("show version | inc serial")
+
+                    # Split lines of output.
+                    serial_numbers = output.splitlines()
+                    # Loop through each line and extract data.
+                    for serial in serial_numbers:
+                        # Check if serial number is for the system.
+                        if "System serial number" in serial:
+                            # Split line up by spaces and get the last word.
+                            serial = re.split(" +", serial)[-1]
+                            # Remove leading and trailing whitespace.
+                            serial = serial.strip()
+                            # Store serial information.
+                            serial_dict["system_serial"] = serial
+                        # Check if serial number is for the system.
+                        if "Motherboard serial number" in serial:
+                            # Split line up by spaces and get the last word.
+                            serial = re.split(" +", serial)[-1]
+                            # Remove leading and trailing whitespace.
+                            serial = serial.strip()
+                            # Store serial information.
+                            serial_dict["motherboard_serial"] = serial
+                        # Check if serial number is for the system.
+                        if "Power supply serial number" in serial:
+                            # Split line up by spaces and get the last word.
+                            serial = re.split(" +", serial)[-1]
+                            # Remove leading and trailing whitespace.
+                            serial = serial.strip()
+                            # Store serial information.
+                            serial_dict["powersupply_serial"] = serial
+
+                    # Append serial info.
+                    serial_info.append(serial_dict)
 
                     #######################################################################
                     # Get the IP and hostname info.
@@ -422,3 +479,5 @@ def clear_discoveries() -> None:
     # Clear global lists.
     ip_discovery_list.clear()
     export_info_list.clear()
+    license_info.clear()
+    serial_info.clear()

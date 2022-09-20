@@ -77,11 +77,11 @@ def ping(ip_or_hostname) -> Tuple[bool, str, str]:
                     reachable = False
                     # Print host id down.
                     logger.warning(f"Unable to talk to {ip_or_hostname}")
-
-            return reachable, ip_addr, hostname
         except Exception as exception:
             # Print debug.
             logger.critical(f"Something weird happened while pinging {ip_or_hostname}.", exc_info=exception, stack_info=True)
+
+    return reachable, ip_addr, hostname
 
 
 def ping_of_death(text, ip_list) -> None:
