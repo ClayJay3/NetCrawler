@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 import time
+import numpy
 import webbrowser
 import tkinter as tk
 from threading import Thread
@@ -396,15 +397,26 @@ class MainUI():
                 # Write normal discovery info.
                 with open('exports/network_crawl.csv', 'w') as file:
                     # Write the first label line.
-                    file.write(str(list(export_info[0].keys()))[1:-1])
+                    file.write(str([key for key in list(export_info[0].keys()) if key != "license_info" and key != "interface_detail"]))
                     # Loop through each device and append info.
                     data_string = "\n"
                     for device in export_info:
                         # Build info string.
                         for key in list(export_info[0].keys()):
-                            # Don't append license info.
-                            if key != "license_info":
-                                data_string += str(device[key]) + ", "
+                            # Don't append some key's info.
+                            if key != "license_info" and key != "interface_detail":
+                                # Check if key is the interface power key and what's stored there is a dictionary.
+                                if key == "interface_power" and isinstance(device[key], dict):
+                                    # Restructure the info to work with the csv format.
+                                    int_power = ""
+                                    for power_key in device[key].keys():
+                                        int_power += f"{key}: {device[key][power_key]} | "
+
+                                    # Append data string.
+                                    data_string += int_power + ","
+                                else:
+                                    # Append data string.
+                                    data_string += str(device[key]) + ", "
                         
                         # Add newline.
                         data_string += "\n"
@@ -603,8 +615,45 @@ class MainUI():
                         if matching:
                             # Remove license info from dictionary.
                             device.pop("license_info", None)
+                            # Pop interface info from device.
+                            interface_detail = device.pop("interface_detail", None)
                             # Append device to new list.
                             filtered_export_info.append(device)
+
+                            # Check if the user wants to show interface info in the graph.
+                            # if export_data_selections[-1] and device["is_switch"]:
+                            if device["is_switch"]:
+                                # Get interface power from device.
+                                interface_power = device["interface_power"]
+
+                                # Create an imaginary interface device from the devices interface info.
+                                for detail, power in zip(interface_detail, interface_power):
+                                    # Catch type errors if extra crap made it through parsing.
+                                    try:
+                                        # Check if the interface state is connected or monitoring.
+                                        if detail["Status"] == "connected" or detail["Status"] == "monitoring":
+                                            # Create device dictionary.
+                                            interface_device = {}
+                                            interface_device["hostname"] = detail["Name"]
+                                            interface_device["status"] = detail["Status"]
+                                            interface_device["vlan"] = detail["Vlan"]
+                                            interface_device["link_duplex"] = detail["Duplex"]
+                                            interface_device["link_speed"] = detail["Speed"]
+                                            interface_device["connection_type"] = detail["Type"]
+                                            interface_device["device_power_stats"] = (f"-----------------------------------"
+                                                                                f"Admin: {power['Admin']}"
+                                                                                f"Operation: {power['Oper']}"
+                                                                                f"Power Draw: {power['Power']}"
+                                                                                f"Device: {power['Device']}"
+                                                                                f"Class: {power['Class']}"
+                                                                                f"Port Power Available: {power['Max']}")
+                                            interface_device["local_trunk_interface"] = "(inferred interface device)"
+                                            interface_device["parent_host"] = device["hostname"]
+                                            interface_device["parent_trunk_interface"] = detail["Port"]
+                                            # Add infered interface device to the filtered_interface list.
+                                            filtered_export_info.append(interface_device)
+                                    except TypeError:
+                                        pass
 
                             # Get the device hostname.
                             hostname = device["hostname"]
@@ -618,23 +667,28 @@ class MainUI():
                             # Append weight to weights list.
                             name_weights.append(weight)
 
-                            # Check device type and append color.
-                            if device["is_wireless_ap"]:
-                                # Orange.
-                                colors.append("#eb6200")
-                            elif device["is_switch"]:       # is_switch and is_router can both be true, router overides.
-                                if device["is_router"] and export_data_selections[0]:
-                                    # Green.
-                                    colors.append("#21ad11")
-                                else:
-                                    # Blue
-                                    colors.append("#3300eb")
-                            elif device["is_phone"]:
-                                # Yellow
-                                colors.append("#f0e805")
-                            elif device["is_camera"]:
-                                # Purple.
-                                colors.append("#9f3dae")
+                            # Check if the device was created from an interface config.
+                            if device["local_trunk_interface"] != "(inferred interface device)":
+                                # Check device type and append color.
+                                if device["is_wireless_ap"]:
+                                    # Orange.
+                                    colors.append("#eb6200")
+                                elif device["is_switch"]:       # is_switch and is_router can both be true, router overides.
+                                    if device["is_router"] and export_data_selections[0]:
+                                        # Green.
+                                        colors.append("#21ad11")
+                                    else:
+                                        # Blue
+                                        colors.append("#3300eb")
+                                elif device["is_phone"]:
+                                    # Yellow
+                                    colors.append("#f0e805")
+                                elif device["is_camera"]:
+                                    # Purple.
+                                    colors.append("#9f3dae")
+                            else:
+                                # Blueish gray.
+                                colors.append("#5c6480")
 
                     # Create a lamba function to generate random hex color codes.
                     # gen_rand_hex = lambda: random.randint(0,255)
