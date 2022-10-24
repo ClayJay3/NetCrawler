@@ -84,7 +84,7 @@ def cdp_auto_discover(ip_list, usernames, passwords, enable_secrets, enable_teln
                     # Append interface info to export dictionary.
                     export_data["device_power_summary"] = interface_data["interface_power"][-1]
                     export_data["interface_detail"] = interface_data["interface_detail"]
-                    export_data["interface_power"] = interface_data["interface_power"][0]
+                    export_data["interface_power"] = interface_data["interface_power"][:-1]
 
         # Clear license_info arrray.
         license_info.clear()
