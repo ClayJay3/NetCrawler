@@ -406,7 +406,7 @@ class MainUI():
                             # Don't append some key's info.
                             if key != "license_info" and key != "interface_detail":
                                 # Check if key is the interface power key and what's stored there is a dictionary.
-                                if key == "interface_power" and isinstance(device[key], dict) and not device["is_switch"]:
+                                if key == "interface_power" and isinstance(device[key], dict) and not(device["is_switch"]):
                                     # Restructure the info to work with the csv format.
                                     int_power = ""
                                     for power_key in device[key].keys():
@@ -463,16 +463,15 @@ class MainUI():
                             filtered_export_info.append(device)
 
                             # Check if the user wants to show interface info in the graph.
-                            # if export_data_selections[-1] and device["is_switch"]:
-                            if device["is_switch"]:
+                            if export_data_selections[-1] and device["is_switch"]:
                                 # Get interface power from device.
-                                interface_power = device["interface_power"]
+                                interface_power = device.pop("interface_power", None)
 
                                 # Create an imaginary interface device from the devices interface info.
                                 for detail, power in zip(interface_detail, interface_power):
                                     try:
                                         # Check if the interface state is connected or monitoring. Also check is interface details are available. Don't use device if it is a trunk.
-                                        if (not isinstance(detail, str) and len(detail["Name"]) > 0) and (detail["Status"] == "connected" or detail["Status"] == "monitoring"):
+                                        if (not isinstance(detail, str) and len(detail["Name"]) > 0) and (detail["Status"] == "connected" or detail["Status"] == "monitoring") and detail["Vlan"] != "trunk":
                                             # Create device dictionary.
                                             interface_device = {}
                                             interface_device["hostname"] = detail["Name"]
@@ -493,8 +492,10 @@ class MainUI():
                                                                                 f"\nDevice: {power['Device']}"
                                                                                 f"\nClass: {power['Class']}"
                                                                                 f"\nPort Power Available: {power['Max']}")
-                                            # Add infered interface device to the filtered_interface list.
-                                            filtered_export_info.append(interface_device)
+                                            # Check that the interface device doesn't match an already created main node.
+                                            if not True in [True if device["hostname"] == interface_device["hostname"] else False for device in export_info]:
+                                                # Add infered interface device to the filtered_interface list.
+                                                filtered_export_info.append(interface_device)
                                     except (TypeError, KeyError):
                                         pass
 
