@@ -7,7 +7,7 @@
   },
   {
    "optionDest": "filenames",
-   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/PythonSwitchConfigurator/run.py"
+   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/NetCrawler/NetCrawler/run.py"
   },
   {
    "optionDest": "onefile",
@@ -74,16 +74,20 @@
    "value": "rich"
   },
   {
-   "optionDest": "pathex",
-   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/PythonSwitchConfigurator/interface"
-  },
-  {
-   "optionDest": "pathex",
-   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/PythonSwitchConfigurator/utils"
+   "optionDest": "collect_all",
+   "value": "pyvis"
   },
   {
    "optionDest": "collect_all",
-   "value": "pyvis"
+   "value": "chromedriver"
+  },
+  {
+   "optionDest": "pathex",
+   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/NetCrawler/NetCrawler/interface"
+  },
+  {
+   "optionDest": "pathex",
+   "value": "C:/Users/clayton.cowen/Documents/PythonSwitchConfiguratorProject/NetCrawler/NetCrawler/utils"
   }
  ],
  "nonPyinstallerOptions": {
