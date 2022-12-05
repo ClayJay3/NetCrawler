@@ -27,7 +27,7 @@ class MainUI():
         self.logger = logging.getLogger(__name__)
         self.window_is_open = True
         self.grid_size = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-        self.export_options_list = ["ROUTER", "SWITCH", "WIRELESS AP", "IP PHONE", "CAMERA"]
+        self.export_options_list = ["ROUTER", "SWITCH", "WIRELESS AP", "IP PHONE", "CAMERA", "INTERFACES (experimental)"]
         self.export_option_items = []
         self.export_options_check_values = []
         self.font = "antiqueolive"
@@ -78,7 +78,7 @@ class MainUI():
         # Set window closing actions.
         self.window.protocol("WM_DELETE_WINDOW", self.close_window)
         # Set window title.
-        self.window.title("Mostly Universal Switch Configurator")
+        self.window.title("Cisco Switch Topology Mapper")
         # Set window to the front of others.
         self.window.attributes("-topmost", True)
         self.window.update()
@@ -139,7 +139,7 @@ class MainUI():
         self.text_box.grid(row=1, rowspan=9, columnspan=9, sticky=tk.NSEW)
         button = tk.Button(master=device_list_frame, text="Map Network", foreground="black", background="white", command=self.auto_discover_switches_callback)
         button.grid(row=1, rowspan=4, column=9, sticky=tk.NSEW)
-        live_view_checkbox = tk.Checkbutton(master=device_list_frame, text="Live View Mode", variable=self.live_view_check, onvalue=True, offvalue=False)
+        live_view_checkbox = tk.Checkbutton(master=device_list_frame, text="Live View Mode\n(experimental)", variable=self.live_view_check, onvalue=True, offvalue=False)
         live_view_checkbox.grid(row=5, rowspan=1, column=9, columnspan=1, sticky=tk.E)
         button_ping = tk.Button(master=device_list_frame, text="Ping Check", foreground="black", background="white", command=self.mass_ping_button_callback)
         button_ping.grid(row=6, rowspan=4, column=9, sticky=tk.NSEW)
@@ -179,8 +179,11 @@ class MainUI():
         for item in self.export_options_list:
             # Create and store new boolean var to hold checkbox value.
             check_value = tk.BooleanVar(self.window)
-            # Set default values to True.
-            check_value.set(True)
+            # Set default values to True except for experimental features.
+            if item == "INTERFACES (experimental)":
+                check_value.set(False)
+            else:
+                check_value.set(True)
             self.export_options_check_values.append(check_value)
             # Create and place new checkbox.
             checkbox = tk.Checkbutton(master=options_frame, text=item, variable=check_value, onvalue=True, offvalue=False)
@@ -397,29 +400,16 @@ class MainUI():
                 # Write normal discovery info.
                 with open('exports/network_crawl.csv', 'w') as file:
                     # Write the first label line.
-                    file.write(str([key for key in list(export_info[0].keys()) if key != "license_info" and key != "interface_detail"]))
+                    file.write(str([key for key in list(export_info[0].keys()) if key != "license_info" and key != "interface_detail" and key != "interface_power"]))
                     # Loop through each device and append info.
                     data_string = "\n"
                     for device in export_info:
                         # Build info string.
                         for key in list(export_info[0].keys()):
                             # Don't append some key's info.
-                            if key != "license_info" and key != "interface_detail":
-                                # Check if key is the interface power key and what's stored there is a dictionary.
-                                if key == "interface_power" and isinstance(device[key], dict) and not(device["is_switch"]):
-                                    # Restructure the info to work with the csv format.
-                                    int_power = ""
-                                    for power_key in device[key].keys():
-                                        int_power += f"{key}: {device[key][power_key]} | "
-
-                                    # Append data string.
-                                    data_string += int_power + ","
-                                elif key == "interface_power" and isinstance(device[key], dict):
-                                    # Since the device is a switch, put null for power info.
-                                    data_string += "NULL, "
-                                else:
-                                    # Append data string.
-                                    data_string += str(device[key]) + ", "
+                            if key != "license_info" and key != "interface_detail" and key != "interface_power":
+                                # Add data to data string.
+                                data_string += str(device[key]) + ", "
                         
                         # Add newline.
                         data_string += "\n"
@@ -442,7 +432,7 @@ class MainUI():
                         # Check if the matching data list isn't empty.
                         if export_data_selections is not None and len(export_data_selections) > 0:
                             # Create list of booleans for device type.
-                            type_boolean_list = [device["is_router"], device["is_switch"], device["is_wireless_ap"], device["is_phone"], device["is_camera"]]
+                            type_boolean_list = [device["is_router"], device["is_switch"], device["is_wireless_ap"], device["is_phone"], device["is_camera"], True]
                             # Get a list of matching values for corresponding positions in the list.
                             matching = False
                             for i, bool_val in enumerate(export_data_selections):
@@ -459,14 +449,12 @@ class MainUI():
                             device.pop("license_info", None)
                             # Pop interface info from device.
                             interface_detail = device.pop("interface_detail", None)
+                            interface_power = device.pop("interface_power", None)
                             # Append device to new list.
                             filtered_export_info.append(device)
 
                             # Check if the user wants to show interface info in the graph.
                             if export_data_selections[-1] and device["is_switch"]:
-                                # Get interface power from device.
-                                interface_power = device.pop("interface_power", None)
-
                                 # Create an imaginary interface device from the devices interface info.
                                 for detail, power in zip(interface_detail, interface_power):
                                     try:
@@ -485,13 +473,7 @@ class MainUI():
                                             interface_device["parent_trunk_interface"] = detail["Port"]
                                             # Check to make sure device power is available
                                             if not isinstance(power, str):
-                                                interface_device["device_power_stats"] = (f"-----------------------------------"
-                                                                                f"\nAdmin: {power['Admin']}"
-                                                                                f"\nOperation: {power['Oper']}"
-                                                                                f"\nPower Draw: {power['Power']}"
-                                                                                f"\nDevice: {power['Device']}"
-                                                                                f"\nClass: {power['Class']}"
-                                                                                f"\nPort Power Available: {power['Max']}")
+                                                interface_device["device_power_stats"] = (f"Admin: {power['Admin']} | Operation: {power['Oper']} | Power Draw: {power['Power']} | Device: {power['Device']} | Class: {power['Class']} | Port Power Available: {power['Max']}")
                                             # Check that the interface device doesn't match an already created main node.
                                             if not True in [True if device["hostname"] == interface_device["hostname"] else False for device in export_info]:
                                                 # Add infered interface device to the filtered_interface list.
@@ -838,6 +820,10 @@ class MainUI():
                 # Set toggle.
                 self.export_permission_error = False
             else:
+                # Open exported html in a new webbrowser.
+                webbrowser.open('file://' + os.path.realpath("exports/hierarchical_graph.html"))
+                webbrowser.open('file://' + os.path.realpath("exports/universe_graph.html"))
+
                 # Show messagebox stating discovery is complete.
                 messagebox.showinfo(title="Discovery Finished", message="Discovery is finished. All discovered IPs have been put in the IP textbox. If exports were enabled, they have been saved to the local directory of this app.")
 
