@@ -28,3 +28,19 @@ If your wanting to make code changes or just want the latest build, you'll need 
       
 ### More Info
 All actions, warnings, and errors are saved to a timestamped logs folder in the root directory of the appliction. If the program crashes or does something unexpected, please open a new issue here on github and include the log in the issue.
+
+### The commands ran by NetCrawler are limited to:
+-	show license | include Feature|Period|State
+-	show license all | include Status:
+-	show license right-to-use
+-	show version | inc serial
+-	show interface status
+-	show interface description
+-	show power inline
+-	show cdp neighbors detail
+-	terminal length 0
+-	set length 0
+-	show priv
+-	show run
+-	show vlan brief
+
