@@ -1,5 +1,4 @@
 # Import required packages and modules.
-from cmd import PROMPT
 import re
 import logging
 from functools import partial

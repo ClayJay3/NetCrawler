@@ -83,6 +83,9 @@ class MainUI():
         self.window.attributes("-topmost", True)
         self.window.update()
         self.window.attributes("-topmost", False)
+        # Set minimum size of window.
+        self.window.minsize(1185, 585)
+
         # Create checkbox variables.
         self.enable_telnet_check = tk.BooleanVar(self.window)
         self.force_telnet_check = tk.BooleanVar(self.window)
