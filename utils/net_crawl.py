@@ -219,7 +219,7 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                 serial_dict = {"ip_addr": ip_addr, "system_serial": "NULL", "motherboard_serial": "NULL", "powersupply_serial": "NULL"}
                 interface_dict = {"ip_addr": ip_addr, "interface_detail": {}, "interface_power": ["No interface power details", "No port power summary"]}
 
-                # Catch any readtimeouts.
+                # Catch any parse errors for license info.
                 try:
                     #######################################################################
                     # Get license info.
@@ -300,10 +300,18 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                                 line = line.replace("\t", " ")
                                 # Append info the license dictionary.
                                 license_dict["license_state"] = line
+                except ReadTimeout:
+                    # Nothing to do.
+                    pass
+                except Exception as error:
+                    # Print logger error.
+                    logger.warning(f"Difficulty parsing switch license output from {ip_addr}: {error}")
 
-                    # Append information to the list.
-                    license_info.append(license_dict)
+                # Append information to the list.
+                license_info.append(license_dict)
 
+                # Catch any parse errors for serial info.
+                try:
                     #######################################################################
                     # Get hardware serial info.
                     #######################################################################
@@ -338,17 +346,24 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                             serial = serial.strip()
                             # Store serial information.
                             serial_dict["powersupply_serial"] = serial
+                except ReadTimeout:
+                    # Nothing to do.
+                    pass
+                except Exception as error:
+                    # Print logger error.
+                    logger.warning(f"Difficulty parsing switch serial output from {ip_addr}: {error}")
 
-                    # Append serial info.
-                    serial_info.append(serial_dict)
+                # Append serial info.
+                serial_info.append(serial_dict)
 
+                # Catch any parse errors for interface info.
+                try:
                     #######################################################################
                     # Get interface connection info.
                     #######################################################################
                     # Run command to get interface status.
                     int_output = connection.send_command("show interface status").strip()
                     int_desc_output = connection.send_command("show interface description")
-                    power_output = connection.send_command("show power inline")
 
                     # Split output up by lines and store first line seperately.
                     data_keys = re.split(" +", int_output.splitlines()[0])
@@ -414,6 +429,20 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                                 interface["Name"] = desc["Description"]
                     # Add interface detial to interface dictionary.
                     interface_dict["interface_detail"] = interface_details
+                except ReadTimeout:
+                    # Nothing to do.
+                    pass
+                except Exception as error:
+                    # Print logger error.
+                    logger.warning(f"Difficulty parsing switch interface output from {ip_addr}: {error}")
+                    
+                # Catch any parse errors for interface info.
+                try:
+                    #######################################################################
+                    # Get interface connection info.
+                    #######################################################################
+                    # Run command to get interface status.
+                    power_output = connection.send_command("show power inline")
 
                     # Check if the output is not empty.
                     if len(power_output) > 1:
@@ -430,24 +459,33 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
 
                         # Get port power info.
                         power_output = [line for line in power_output[4:] if "-" not in line]
-                        # Get the columns labels to use as key for the dictionary.
-                        data_keys = re.split(" +", power_output.pop(0))
-                        # Get each interfaces power info and put it into dictionaries.
-                        interface_powers = []
-                        for line in power_output[1:]:
-                            # Split line by spaces.
-                            line = re.split(" +", line)
-                            # Match/zip values into a dictionary with the keys being the labels from the first line.
-                            interface_powers.append(dict(zip(data_keys, line)))
+                        # Check if any power ports exist.
+                        if len(power_output) > 1:
+                            # Get the columns labels to use as key for the dictionary.
+                            data_keys = re.split(" +", power_output.pop(0))
+                            # Get each interfaces power info and put it into dictionaries.
+                            interface_powers = []
+                            for line in power_output[1:]:
+                                # Split line by spaces.
+                                line = re.split(" +", line)
+                                # Match/zip values into a dictionary with the keys being the labels from the first line.
+                                interface_powers.append(dict(zip(data_keys, line)))
 
-                        # Append overall power to end of interface_powers dictionary.
-                        interface_powers.append(overall_power_summary)
-                        # Store interface power info into interface dictionary.
-                        interface_dict["interface_power"] = interface_powers
+                            # Append overall power to end of interface_powers dictionary.
+                            interface_powers.append(overall_power_summary)
+                            # Store interface power info into interface dictionary.
+                            interface_dict["interface_power"] = interface_powers
+                except ReadTimeout:
+                    # Nothing to do.
+                    pass
+                except Exception as error:
+                    # Print logger error.
+                    logger.warning(f"Difficulty parsing switch power info output from {ip_addr}: {error}")
 
-                    # Append interface info.
-                    interface_info.append(interface_dict)
+                # Append interface info.
+                interface_info.append(interface_dict)
 
+                try:
                     #######################################################################
                     # Get the cdp neighbor info.
                     #######################################################################
@@ -586,6 +624,9 @@ def get_cdp_neighbors_info(usernames, passwords, enable_secrets, enable_telnet, 
                 except ReadTimeout:
                     # Nothing to do.
                     pass
+                except Exception as error:
+                    # Print logger error.
+                    logger.warning(f"Difficulty parsing CDP neighbors output from {ip_addr}: {error}")
 
     return cdp_neighbors_result_ips, device_infos
 
