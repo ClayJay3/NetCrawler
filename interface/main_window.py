@@ -420,6 +420,8 @@ class MainUI():
                     # Write the final string.
                     file.write(data_string)
 
+                # Write excel workbook.
+
                 # Check if live view mode is enabled.
                 if not enable_live_view:
                     # Create new network map object from pyvis.
