@@ -16,6 +16,7 @@ gevent = "*"
 pyvis = "*"
 auto-py-to-exe = "*"
 selenium = "*"
+cryptography = "*"
 
 [dev-packages]
 
